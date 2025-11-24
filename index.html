@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MetaViewer</title>
+
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+<!-- EXIF JS -->
+<script src="https://cdn.jsdelivr.net/npm/exif-js"></script>
+
+<style>
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(140deg, #0a0a1a, #1a1a38, #0c0c20);
+  background-size: 200% 200%;
+  animation: bgAnim 12s ease infinite;
+  color: white;
+  overflow-x: hidden;
+}
+
+@keyframes bgAnim {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.container {
+  padding: 70px 20px;
+  max-width: 900px;
+  margin: auto;
+  text-align: center;
+}
+
+h1 {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  margin-bottom: 40px;
+  opacity: 0.8;
+}
+
+/* Custom file upload */
+.upload-area {
+  background: rgba(255,255,255,0.05);
+  border: 2px dashed rgba(255,255,255,0.3);
+  padding: 40px;
+  border-radius: 18px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.upload-area:hover {
+  transform: scale(1.03);
+  border-color: #00d4ff;
+}
+
+.upload-area p {
+  font-size: 1.1rem;
+  opacity: 0.9;
+}
+
+#imageInput {
+  display: none;
+}
+
+.btn {
+  margin-top: 25px;
+  padding: 14px 40px;
+  font-size: 1.2rem;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(90deg,#0066ff,#00d4ff);
+  color: white;
+  cursor: pointer;
+  transition: 0.3s;
+  font-weight: 600;
+}
+
+.btn:hover {
+  transform: scale(1.05);
+}
+
+/* Image preview box */
+.preview-box {
+  margin-top: 35px;
+  background: rgba(255,255,255,0.05);
+  border-radius: 20px;
+  padding: 20px;
+  display: none;
+  text-align: center;
+}
+
+.preview-box img {
+  max-width: 300px;
+  border-radius: 14px;
+  margin-bottom: 15px;
+}
+
+/* Result Cards Container */
+#result {
+  margin-top: 40px;
+  display: none;
+}
+
+.result-title {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 25px;
+}
+
+/* Metadata card */
+.meta-card {
+  background: rgba(255,255,255,0.05);
+  padding: 18px 20px;
+  border-radius: 14px;
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: 0.25s;
+}
+
+.meta-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  border-color: #00d4ff;
+}
+
+.meta-key {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.meta-value {
+  opacity: 0.65;
+  text-align: right;
+  max-width: 55%;
+}
+
+footer {
+  margin-top: 40px;
+  opacity: 0.4;
+  font-size: 0.9rem;
+}
+
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+  <h1>MetaViewer</h1>
+  <p class="subtitle">Analyze image metadata in a clean, modern, premium way</p>
+
+  <label for="imageInput">
+    <div class="upload-area">
+      <p><b>Click to upload an image</b><br>Select JPG / PNG / HEIC</p>
+    </div>
+  </label>
+
+  <input type="file" id="imageInput" accept="image/*">
+
+  <button class="btn" onclick="readMetadata()">Show Details</button>
+
+  <!-- Image preview -->
+  <div class="preview-box" id="previewBox">
+    <h3>Preview</h3>
+    <img id="previewImage">
+  </div>
+
+  <!-- Results -->
+  <div id="result">
+    <div class="result-title">Extracted Information</div>
+    <div id="metaList"></div>
+  </div>
+
+  <footer>© 2025 Flyzone84</footer>
+
+</div>
+
+<script>
+function readMetadata() {
+  const fileInput = document.getElementById("imageInput");
+  const previewBox = document.getElementById("previewBox");
+  const resultBox = document.getElementById("result");
+  const metaList = document.getElementById("metaList");
+
+  metaList.innerHTML = "";
+  resultBox.style.display = "none";
+
+  if (!fileInput.files[0]) {
+    alert("Please select an image first.");
+    return;
+  }
+
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+
+  reader.onload = function(e) {
+    const img = new Image();
+    img.src = e.target.result;
+
+    // Show preview
+    previewBox.style.display = "block";
+    document.getElementById("previewImage").src = img.src;
+
+    img.onload = function() {
+      
+      // Basic Info
+      const basic = {
+        "File Name": file.name,
+        "File Size": (file.size / 1024).toFixed(1) + " KB",
+        "Resolution": img.width + " × " + img.height,
+        "Type": file.type
+      };
+
+      for (const key in basic) {
+        createCard(key, basic[key]);
+      }
+
+      // EXIF metadata
+      EXIF.getData(img, function() {
+        const allMeta = EXIF.getAllTags(this);
+
+        if (Object.keys(allMeta).length > 0) {
+
+          for (let key in allMeta) {
+            createCard(key, allMeta[key]);
+          }
+
+        } else {
+          createCard("EXIF Data", "No metadata found");
+        }
+
+        resultBox.style.display = "block";
+      });
+    };
+  };
+
+  reader.readAsDataURL(file);
+}
+
+function createCard(key, val) {
+  const metaList = document.getElementById("metaList");
+
+  const card = document.createElement("div");
+  card.className = "meta-card";
+
+  card.innerHTML = `
+    <div class="meta-key">${key}</div>
+    <div class="meta-value">${val}</div>
+  `;
+
+  metaList.appendChild(card);
+}
+</script>
+
+</body>
+</html>
