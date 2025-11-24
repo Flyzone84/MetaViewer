@@ -27,7 +27,7 @@ Built with a modern 3D-styled interface, smooth UI components, and clean result 
 
 ---
 
-## 🚀 Live Demo  
+## 🚀 CHECK NOW
 👉 **Website Link:**  
 *(Add your GitHub Pages link here)*  
 `https://yourusername.github.io/your-repo-name/`
